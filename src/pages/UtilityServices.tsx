@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Wrench, MapPin, Phone, Search, Building2, ChevronRight, Package, Minus, Plus, ShoppingCart, History, RefreshCw, CheckCircle2, Circle } from "lucide-react";
 import { formatServicePrice, statusLabel, type UtilityCategory, type UtilityRequest, type UtilityService, type UtilityVariant } from "@/lib/utilityServices";
+import { formatAvailability } from "@/components/utility/AvailabilityDialog";
 import AddressFormFields, {
   emptyAddressForm,
   formatAddressText,
@@ -534,9 +535,24 @@ const UtilityServices = () => {
                             <p className="shrink-0 font-semibold">₹{Number(request.quoted_amount ?? request.total_amount).toLocaleString("en-IN")}</p>
                           )}
                         </div>
-                        <Button variant="outline" size="sm" className="gap-2" onClick={() => setTrackingRequestId(expanded ? null : request.id)}>
-                          <History className="h-4 w-4" />{expanded ? "Hide status" : "Track status"}
-                        </Button>
+                        {!cancelled && formatAvailability((request as any).availability_unit, (request as any).availability_value) && (
+                          <p className="rounded-md bg-secondary p-2 text-sm font-medium text-secondary-foreground">
+                            Service available within {formatAvailability((request as any).availability_unit, (request as any).availability_value)}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" size="sm" className="gap-2" onClick={() => setTrackingRequestId(expanded ? null : request.id)}>
+                            <History className="h-4 w-4" />{expanded ? "Hide status" : "Track status"}
+                          </Button>
+                          {["pending", "assigned", "quoted"].includes(request.status) && (
+                            <Button variant="outline" size="sm" className="text-destructive border-destructive/40" onClick={async () => {
+                              if (!window.confirm("Cancel this booking? The service partner will be notified.")) return;
+                              const { data, error } = await supabase.rpc("cancel_my_utility_request" as never, { _request_id: request.id } as never);
+                              if (error || !data) toast({ title: "Could not cancel", description: error?.message ?? "This booking can no longer be cancelled.", variant: "destructive" });
+                              else { toast({ title: "Booking cancelled" }); void loadRequestHistory(); }
+                            }}>Cancel booking</Button>
+                          )}
+                        </div>
                         {expanded && (
                           <div className="space-y-3 border-t pt-3" aria-label={`Status tracking for booking ${request.id.slice(0, 8)}`}>
                             {cancelled ? (

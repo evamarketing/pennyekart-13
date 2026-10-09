@@ -2470,6 +2470,9 @@ export type Database = {
           address: string | null
           address_id: string | null
           admin_notes: string | null
+          availability_unit: string | null
+          availability_value: number | null
+          cancelled_by: string | null
           contact_name: string
           contact_phone: string
           created_at: string
@@ -2494,6 +2497,9 @@ export type Database = {
           address?: string | null
           address_id?: string | null
           admin_notes?: string | null
+          availability_unit?: string | null
+          availability_value?: number | null
+          cancelled_by?: string | null
           contact_name: string
           contact_phone: string
           created_at?: string
@@ -2518,6 +2524,9 @@ export type Database = {
           address?: string | null
           address_id?: string | null
           admin_notes?: string | null
+          availability_unit?: string | null
+          availability_value?: number | null
+          cancelled_by?: string | null
           contact_name?: string
           contact_phone?: string
           created_at?: string
@@ -2729,6 +2738,10 @@ export type Database = {
       anonymize_user_data: { Args: { _uid: string }; Returns: undefined }
       cancel_community_invite: {
         Args: { _invite_id: string }
+        Returns: boolean
+      }
+      cancel_my_utility_request: {
+        Args: { _request_id: string }
         Returns: boolean
       }
       confirm_account_verification: {

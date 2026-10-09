@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Wrench, LogOut, Phone, Home, Package, Check, CheckCircle2, Bell, BellOff, CircleDot, PauseCircle, User, ArrowLeft } from "lucide-react";
 import VariantManager from "@/components/utility/VariantManager";
+import AvailabilityDialog, { type AvailabilityUnit } from "@/components/utility/AvailabilityDialog";
 import UtilityRequestNotificationDialog, { UTILITY_UNFINISHED_STATUSES } from "@/components/utility/UtilityRequestNotificationDialog";
 import { SELLER_REMINDER_INTERVAL } from "@/lib/sellerOrderReminders";
 import OrderItemHighlight from "@/components/selling-partner/OrderItemHighlight";
@@ -159,7 +160,14 @@ const UtilityPartnerDashboard = () => {
     const interval = setInterval(fetchAll, 30000);
     const channel = supabase
       .channel(`utility-requests-${profile.user_id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "utility_service_requests" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "utility_service_requests" }, (payload) => {
+        const row = payload.new as { id?: string; status?: string; cancelled_by?: string } | undefined;
+        if (payload.eventType === "UPDATE" && row?.status === "cancelled" && row.cancelled_by === "customer") {
+          toast({ title: "Booking cancelled by customer", description: `Request #${String(row.id).slice(0, 8)} was cancelled.`, variant: "destructive" });
+          try { navigator.vibrate?.(300); } catch { /* ignore */ }
+        }
+        fetchAll();
+      })
       .subscribe();
     return () => { clearInterval(interval); supabase.removeChannel(channel); };
   }, [profile?.user_id, services.length]);
@@ -231,6 +239,16 @@ const UtilityPartnerDashboard = () => {
     await setRequestStatus(id, "cancelled");
   };
 
+  const [acceptId, setAcceptId] = useState<string | null>(null);
+  const acceptWithAvailability = async (unit: AvailabilityUnit, value: number) => {
+    if (!acceptId) return;
+    const { error } = await supabase.from("utility_service_requests")
+      .update({ status: "assigned", availability_unit: unit, availability_value: value } as never).eq("id", acceptId);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Request accepted" });
+    setAcceptId(null); fetchAll();
+  };
+
   const openEdit = (s: UtilityService) => {
     setForm({
       name: s.name, description: s.description ?? "", image_url: s.image_url ?? "",
@@ -295,7 +313,7 @@ const UtilityPartnerDashboard = () => {
         <div className="grid grid-cols-2 items-center gap-2 pt-2 sm:flex sm:flex-wrap">
           {r.status === "pending" && (
             <>
-              <Button size="sm" className="h-11" onClick={() => setRequestStatus(r.id, "assigned")}>
+              <Button size="sm" className="h-11" onClick={() => setAcceptId(r.id)}>
                 <Check className="mr-1.5 h-3.5 w-3.5" /> Accept
               </Button>
               <Button size="sm" variant="outline" className="h-11 text-destructive border-destructive/40" onClick={() => cancelRequest(r.id)}>
@@ -565,10 +583,11 @@ const UtilityPartnerDashboard = () => {
       {/* New request popup */}
       <UtilityRequestNotificationDialog
         open={alertOpen} onOpenChange={setAlertOpen} requests={requests}
-        serviceName={serviceName} onAccept={(id) => setRequestStatus(id, "assigned")}
+        serviceName={serviceName} onAccept={(id) => setAcceptId(id)}
         onComplete={(id) => setRequestStatus(id, "completed")}
         onCancel={cancelRequest} onRemindLater={remindLater}
       />
+      <AvailabilityDialog open={!!acceptId} onOpenChange={(v) => !v && setAcceptId(null)} onConfirm={acceptWithAvailability} />
 
       {/* Floating bell */}
       {(() => {
