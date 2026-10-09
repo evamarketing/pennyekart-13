@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Wrench, LogOut, Phone, Home, Package, Check, CheckCircle2, Bell, BellOff, CircleDot, PauseCircle, User, ArrowLeft } from "lucide-react";
 import VariantManager from "@/components/utility/VariantManager";
+import AvailabilityDialog, { type AvailabilityUnit } from "@/components/utility/AvailabilityDialog";
 import UtilityRequestNotificationDialog, { UTILITY_UNFINISHED_STATUSES } from "@/components/utility/UtilityRequestNotificationDialog";
 import { SELLER_REMINDER_INTERVAL } from "@/lib/sellerOrderReminders";
 import OrderItemHighlight from "@/components/selling-partner/OrderItemHighlight";
