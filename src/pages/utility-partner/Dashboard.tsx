@@ -231,6 +231,16 @@ const UtilityPartnerDashboard = () => {
     await setRequestStatus(id, "cancelled");
   };
 
+  const [acceptId, setAcceptId] = useState<string | null>(null);
+  const acceptWithAvailability = async (unit: AvailabilityUnit, value: number) => {
+    if (!acceptId) return;
+    const { error } = await supabase.from("utility_service_requests")
+      .update({ status: "assigned", availability_unit: unit, availability_value: value } as never).eq("id", acceptId);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Request accepted" });
+    setAcceptId(null); fetchAll();
+  };
+
   const openEdit = (s: UtilityService) => {
     setForm({
       name: s.name, description: s.description ?? "", image_url: s.image_url ?? "",
@@ -295,7 +305,7 @@ const UtilityPartnerDashboard = () => {
         <div className="grid grid-cols-2 items-center gap-2 pt-2 sm:flex sm:flex-wrap">
           {r.status === "pending" && (
             <>
-              <Button size="sm" className="h-11" onClick={() => setRequestStatus(r.id, "assigned")}>
+              <Button size="sm" className="h-11" onClick={() => setAcceptId(r.id)}>
                 <Check className="mr-1.5 h-3.5 w-3.5" /> Accept
               </Button>
               <Button size="sm" variant="outline" className="h-11 text-destructive border-destructive/40" onClick={() => cancelRequest(r.id)}>
@@ -565,10 +575,11 @@ const UtilityPartnerDashboard = () => {
       {/* New request popup */}
       <UtilityRequestNotificationDialog
         open={alertOpen} onOpenChange={setAlertOpen} requests={requests}
-        serviceName={serviceName} onAccept={(id) => setRequestStatus(id, "assigned")}
+        serviceName={serviceName} onAccept={(id) => setAcceptId(id)}
         onComplete={(id) => setRequestStatus(id, "completed")}
         onCancel={cancelRequest} onRemindLater={remindLater}
       />
+      <AvailabilityDialog open={!!acceptId} onOpenChange={(v) => !v && setAcceptId(null)} onConfirm={acceptWithAvailability} />
 
       {/* Floating bell */}
       {(() => {
