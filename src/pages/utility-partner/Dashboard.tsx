@@ -159,7 +159,14 @@ const UtilityPartnerDashboard = () => {
     const interval = setInterval(fetchAll, 30000);
     const channel = supabase
       .channel(`utility-requests-${profile.user_id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "utility_service_requests" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "utility_service_requests" }, (payload) => {
+        const row = payload.new as { id?: string; status?: string; cancelled_by?: string } | undefined;
+        if (payload.eventType === "UPDATE" && row?.status === "cancelled" && row.cancelled_by === "customer") {
+          toast({ title: "Booking cancelled by customer", description: `Request #${String(row.id).slice(0, 8)} was cancelled.`, variant: "destructive" });
+          try { navigator.vibrate?.(300); } catch { /* ignore */ }
+        }
+        fetchAll();
+      })
       .subscribe();
     return () => { clearInterval(interval); supabase.removeChannel(channel); };
   }, [profile?.user_id, services.length]);
