@@ -23,7 +23,7 @@ import {
   type UtilityCategory, type UtilityService, type UtilityRequest,
 } from "@/lib/utilityServices";
 
-const emptyCategory = { name: "", description: "", icon: "", image_url: "", sort_order: 0, is_active: true, category_type: "service" };
+const emptyCategory = { name: "", description: "", icon: "", image_url: "", sort_order: 0, is_active: true, category_type: "service", auto_cancel_minutes: 0 };
 const emptyService = {
   name: "", description: "", image_url: "", category_id: "", price: 0, price_unit: "fixed",
   contact_phone: "", contact_whatsapp: "", coverage_area: "", is_active: true, is_approved: true, sort_order: 0,
@@ -75,7 +75,7 @@ const UtilityServicesPage = () => {
 
   const saveCategory = async () => {
     if (!catForm.name.trim()) { toast({ title: "Name is required", variant: "destructive" }); return; }
-    const payload = { ...catForm, image_url: catForm.image_url || null, icon: catForm.icon || null, description: catForm.description || null };
+    const payload = { ...catForm, image_url: catForm.image_url || null, icon: catForm.icon || null, description: catForm.description || null, auto_cancel_minutes: catForm.auto_cancel_minutes > 0 ? catForm.auto_cancel_minutes : null };
     const { error } = catEditId
       ? await supabase.from("utility_service_categories").update(payload).eq("id", catEditId)
       : await supabase.from("utility_service_categories").insert(payload);
