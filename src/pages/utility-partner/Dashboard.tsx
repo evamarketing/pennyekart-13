@@ -122,6 +122,8 @@ const UtilityPartnerDashboard = () => {
 
   const fetchAll = async () => {
     if (!profile?.user_id) return;
+    // Sweep bookings that waited past their category's auto-cancel limit.
+    await supabase.rpc("auto_cancel_stale_utility_requests" as never);
     const [cats, svcs] = await Promise.all([
       supabase.from("utility_service_categories").select("*").eq("is_active", true).order("sort_order"),
       supabase.from("utility_services").select("*").eq("provider_user_id", profile.user_id).order("created_at", { ascending: false }),

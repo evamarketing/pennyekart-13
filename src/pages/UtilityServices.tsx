@@ -88,6 +88,8 @@ const UtilityServices = () => {
     if (!user) return;
     setHistoryLoading(true);
     setHistoryError(null);
+    // Sweep bookings that waited past their category's auto-cancel limit.
+    await supabase.rpc("auto_cancel_stale_utility_requests" as never);
     const { data, error } = await supabase
       .from("utility_service_requests")
       .select("*")
@@ -598,7 +600,11 @@ const UtilityServices = () => {
                         {expanded && (
                           <div className="space-y-3 border-t pt-3" aria-label={`Status tracking for booking ${request.id.slice(0, 8)}`}>
                             {cancelled ? (
-                              <p className="text-sm font-medium text-destructive">This booking was cancelled.</p>
+                              <p className="text-sm font-medium text-destructive">
+                                {(request as any).cancelled_by === "system"
+                                  ? "This booking was cancelled automatically — the service partner was not available in time. Please try booking again later."
+                                  : "This booking was cancelled."}
+                              </p>
                             ) : (
                               <>
                                 {request.status === "quoted" && (

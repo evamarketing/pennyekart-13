@@ -19,11 +19,11 @@ import UtilitySellerRegistrations from "@/components/admin/UtilitySellerRegistra
 import { Plus, Pencil, Trash2, Wrench, Phone, MapPin, Package } from "lucide-react";
 import VariantManager from "@/components/utility/VariantManager";
 import {
-  CATEGORY_TYPES, unitsForCategoryType, REQUEST_STATUSES, formatServicePrice, priceUnitLabel, statusLabel,
+  CATEGORY_TYPES, unitsForCategoryType, REQUEST_STATUSES, formatServicePrice, priceUnitLabel, statusLabel, autoCancelLabel,
   type UtilityCategory, type UtilityService, type UtilityRequest,
 } from "@/lib/utilityServices";
 
-const emptyCategory = { name: "", description: "", icon: "", image_url: "", sort_order: 0, is_active: true, category_type: "service" };
+const emptyCategory = { name: "", description: "", icon: "", image_url: "", sort_order: 0, is_active: true, category_type: "service", auto_cancel_minutes: 0 };
 const emptyService = {
   name: "", description: "", image_url: "", category_id: "", price: 0, price_unit: "fixed",
   contact_phone: "", contact_whatsapp: "", coverage_area: "", is_active: true, is_approved: true, sort_order: 0,
@@ -53,6 +53,8 @@ const UtilityServicesPage = () => {
   const { toast } = useToast();
 
   const fetchAll = async () => {
+    // Sweep bookings that waited past their category's auto-cancel limit.
+    await supabase.rpc("auto_cancel_stale_utility_requests" as never);
     const [cats, svcs, reqs, profs, lbs] = await Promise.all([
       supabase.from("utility_service_categories").select("*").order("sort_order"),
       supabase.from("utility_services").select("*").order("created_at", { ascending: false }),
@@ -75,7 +77,7 @@ const UtilityServicesPage = () => {
 
   const saveCategory = async () => {
     if (!catForm.name.trim()) { toast({ title: "Name is required", variant: "destructive" }); return; }
-    const payload = { ...catForm, image_url: catForm.image_url || null, icon: catForm.icon || null, description: catForm.description || null };
+    const payload = { ...catForm, image_url: catForm.image_url || null, icon: catForm.icon || null, description: catForm.description || null, auto_cancel_minutes: catForm.auto_cancel_minutes > 0 ? catForm.auto_cancel_minutes : null };
     const { error } = catEditId
       ? await supabase.from("utility_service_categories").update(payload).eq("id", catEditId)
       : await supabase.from("utility_service_categories").insert(payload);
@@ -126,6 +128,7 @@ const UtilityServicesPage = () => {
       name: c.name, description: c.description ?? "", icon: c.icon ?? "",
       image_url: c.image_url ?? "", sort_order: c.sort_order, is_active: c.is_active,
       category_type: c.category_type ?? "service",
+      auto_cancel_minutes: c.auto_cancel_minutes ?? 0,
     });
     setCatEditId(c.id); setCatOpen(true);
   };
@@ -201,6 +204,24 @@ const UtilityServicesPage = () => {
                     <div><Label>Icon Name (Lucide)</Label><Input value={catForm.icon} onChange={(e) => setCatForm({ ...catForm, icon: e.target.value })} placeholder="e.g. Plug, Hammer" /></div>
                     <ImageUpload bucket="categories" value={catForm.image_url} onChange={(url) => setCatForm({ ...catForm, image_url: url })} label="Category Image" />
                     <div><Label>Sort Order</Label><Input type="number" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: +e.target.value })} /></div>
+                    <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+                      <Label>Auto-cancel waiting limit (minutes)</Label>
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        If no partner accepts a booking within this time, it is cancelled automatically and the customer is told the service is unavailable. Set 0 to never auto-cancel.
+                      </p>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={catForm.auto_cancel_minutes}
+                        onChange={(e) => setCatForm({ ...catForm, auto_cancel_minutes: Math.max(0, +e.target.value || 0) })}
+                        placeholder="e.g. 30"
+                      />
+                      {catForm.auto_cancel_minutes > 0 && (
+                        <p className="mt-1 text-xs font-medium text-destructive">
+                          Unaccepted bookings cancel after {autoCancelLabel(catForm.auto_cancel_minutes)}.
+                        </p>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2"><Switch checked={catForm.is_active} onCheckedChange={(v) => setCatForm({ ...catForm, is_active: v })} /><Label>Active</Label></div>
                     <Button className="w-full" onClick={saveCategory}>Save</Button>
                   </div>
@@ -215,6 +236,7 @@ const UtilityServicesPage = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Services</TableHead>
+                  <TableHead>Auto-cancel</TableHead>
                   <TableHead>Order</TableHead>
                   <TableHead>Active</TableHead>
                   <TableHead className="w-24">Actions</TableHead>
@@ -233,6 +255,9 @@ const UtilityServicesPage = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>{services.filter((s) => s.category_id === c.id).length}</TableCell>
+                    <TableCell>
+                      <Badge variant={c.auto_cancel_minutes ? "destructive" : "outline"}>{autoCancelLabel(c.auto_cancel_minutes)}</Badge>
+                    </TableCell>
                     <TableCell>{c.sort_order}</TableCell>
                     <TableCell>{c.is_active ? "✓" : "✗"}</TableCell>
                     <TableCell>

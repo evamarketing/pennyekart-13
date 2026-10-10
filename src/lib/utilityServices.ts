@@ -73,7 +73,18 @@ export interface UtilityCategory {
   sort_order: number;
   is_active: boolean;
   category_type?: string | null;
+  auto_cancel_minutes?: number | null;
 }
+
+/** Human label for a category's auto-cancel waiting limit. */
+export const autoCancelLabel = (minutes?: number | null) => {
+  if (!minutes || minutes <= 0) return "Off";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  if (hours < 24) return `${hours % 1 === 0 ? hours : hours.toFixed(1)} hr`;
+  const days = hours / 24;
+  return `${days % 1 === 0 ? days : days.toFixed(1)} day${days === 1 ? "" : "s"}`;
+};
 
 export interface UtilityService {
   id: string;
