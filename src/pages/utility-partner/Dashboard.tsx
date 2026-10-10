@@ -311,6 +311,13 @@ const UtilityPartnerDashboard = () => {
         {r.preferred_date && <p className="text-xs text-muted-foreground">Preferred: {r.preferred_date}</p>}
         {r.notes && <p className="break-words text-xs text-muted-foreground">{r.notes}</p>}
         <div className="grid grid-cols-2 items-center gap-2 pt-2 sm:flex sm:flex-wrap">
+          {r.contact_phone?.replace(/\D/g, "") && (
+            <Button asChild size="sm" variant="outline" className="h-11">
+              <a href={`tel:${r.contact_phone.replace(/\D/g, "")}`}>
+                <Phone className="mr-1.5 h-3.5 w-3.5" /> Call
+              </a>
+            </Button>
+          )}
           {r.status === "pending" && (
             <>
               <Button size="sm" className="h-11" onClick={() => setAcceptId(r.id)}>
