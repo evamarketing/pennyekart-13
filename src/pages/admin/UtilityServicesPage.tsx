@@ -53,6 +53,8 @@ const UtilityServicesPage = () => {
   const { toast } = useToast();
 
   const fetchAll = async () => {
+    // Sweep bookings that waited past their category's auto-cancel limit.
+    await supabase.rpc("auto_cancel_stale_utility_requests" as never);
     const [cats, svcs, reqs, profs, lbs] = await Promise.all([
       supabase.from("utility_service_categories").select("*").order("sort_order"),
       supabase.from("utility_services").select("*").order("created_at", { ascending: false }),
