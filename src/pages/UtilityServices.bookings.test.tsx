@@ -17,13 +17,14 @@ vi.mock("@/integrations/supabase/client", () => {
         ? { data: [{ id: "svc1", name: "Plumbing" }], error: null }
         : { data: [], error: null };
   const chainFor = (table: string): any => {
-    const chain: any = new Proxy(function () {}, {
-      get: (_target, prop) => {
-        if (prop === "then") return (resolve: (value: unknown) => void) => resolve(resultFor(table));
-        if (prop === "catch") return () => chain;
-        return (..._args: unknown[]) => chain;
-      },
-    });
+    const chain: any = {
+      select: () => chain, insert: () => chain, update: () => chain, upsert: () => chain,
+      eq: () => chain, neq: () => chain, in: () => chain, is: () => chain, like: () => chain,
+      ilike: () => chain, gte: () => chain, lte: () => chain, gt: () => chain, lt: () => chain,
+      order: () => chain, limit: () => chain, range: () => chain, single: () => chain,
+      maybeSingle: () => chain,
+      then: (resolve: (value: unknown) => void) => resolve(resultFor(table)),
+    };
     return chain;
   };
   return {
