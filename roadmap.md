@@ -75,3 +75,9 @@
 
 ## Admin Reports click-to-open details
 - [x] Every stat tile and report card on /admin/reports opens a popup with the full list behind it (orders, finance, products, sellers, delivery, stock, areas, searches, customers); P&L summary now opens as a popup. Type check passed; live admin view unverified (needs admin sign-in).
+
+## Utility auto-cancel waiting limit
+- [x] Per-category auto-cancel minutes setting in /admin/utility-services
+- [x] DB function cancels stale pending bookings (cancelled_by=system)
+- [x] Sweep runs on customer history, partner dashboard, admin page loads
+- [x] Customer sees "partner unavailable" notice; tests pass, build OK
