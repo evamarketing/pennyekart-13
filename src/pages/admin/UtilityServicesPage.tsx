@@ -234,6 +234,7 @@ const UtilityServicesPage = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Services</TableHead>
+                  <TableHead>Auto-cancel</TableHead>
                   <TableHead>Order</TableHead>
                   <TableHead>Active</TableHead>
                   <TableHead className="w-24">Actions</TableHead>
@@ -252,6 +253,9 @@ const UtilityServicesPage = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>{services.filter((s) => s.category_id === c.id).length}</TableCell>
+                    <TableCell>
+                      <Badge variant={c.auto_cancel_minutes ? "destructive" : "outline"}>{autoCancelLabel(c.auto_cancel_minutes)}</Badge>
+                    </TableCell>
                     <TableCell>{c.sort_order}</TableCell>
                     <TableCell>{c.is_active ? "✓" : "✗"}</TableCell>
                     <TableCell>
