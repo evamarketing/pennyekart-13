@@ -2428,6 +2428,7 @@ export type Database = {
       }
       utility_service_categories: {
         Row: {
+          auto_cancel_minutes: number | null
           category_type: string
           created_at: string
           description: string | null
@@ -2440,6 +2441,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_cancel_minutes?: number | null
           category_type?: string
           created_at?: string
           description?: string | null
@@ -2452,6 +2454,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_cancel_minutes?: number | null
           category_type?: string
           created_at?: string
           description?: string | null
@@ -2736,6 +2739,7 @@ export type Database = {
     Functions: {
       am_i_verified: { Args: never; Returns: boolean }
       anonymize_user_data: { Args: { _uid: string }; Returns: undefined }
+      auto_cancel_stale_utility_requests: { Args: never; Returns: number }
       cancel_community_invite: {
         Args: { _invite_id: string }
         Returns: boolean
