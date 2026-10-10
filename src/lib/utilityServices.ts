@@ -131,3 +131,9 @@ export interface UtilityVariant {
   is_active: boolean;
   sort_order: number;
 }
+
+export type BookingGroup = "pending" | "completed" | "cancelled";
+
+/** Which "My bookings" tab a utility request belongs to. */
+export const bookingGroup = (status?: string | null): BookingGroup =>
+  status === "completed" ? "completed" : status === "cancelled" ? "cancelled" : "pending";

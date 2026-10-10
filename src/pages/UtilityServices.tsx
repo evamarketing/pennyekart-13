@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Wrench, MapPin, Phone, Search, Building2, ChevronRight, Package, Minus, Plus, ShoppingCart, History, RefreshCw, CheckCircle2, Circle } from "lucide-react";
-import { formatServicePrice, statusLabel, type UtilityCategory, type UtilityRequest, type UtilityService, type UtilityVariant } from "@/lib/utilityServices";
+import { bookingGroup, formatServicePrice, statusLabel, type UtilityCategory, type UtilityRequest, type UtilityService, type UtilityVariant } from "@/lib/utilityServices";
 import { formatAvailability } from "@/components/utility/AvailabilityDialog";
 import AddressFormFields, {
   emptyAddressForm,
@@ -79,6 +79,7 @@ const UtilityServices = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [trackingRequestId, setTrackingRequestId] = useState<string | null>(null);
+  const [historyTab, setHistoryTab] = useState<"pending" | "completed" | "cancelled">("pending");
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -115,6 +116,21 @@ const UtilityServices = () => {
     setHistoryLoading(false);
   }, [user]);
 
+  const bookingGroups = useMemo(() => ({
+    pending: requestHistory.filter((request) => bookingGroup(request.status) === "pending"),
+    completed: requestHistory.filter((request) => bookingGroup(request.status) === "completed"),
+    cancelled: requestHistory.filter((request) => bookingGroup(request.status) === "cancelled"),
+  }), [requestHistory]);
+  const bookingTabs = [
+    { key: "pending" as const, label: "Pending", count: bookingGroups.pending.length },
+    { key: "completed" as const, label: "Completed", count: bookingGroups.completed.length },
+    ...(bookingGroups.cancelled.length > 0
+      ? [{ key: "cancelled" as const, label: "Cancelled", count: bookingGroups.cancelled.length }]
+      : []),
+  ];
+  const activeBookingTab = bookingTabs.some((tab) => tab.key === historyTab) ? historyTab : "pending";
+  const visibleBookings = bookingGroups[activeBookingTab];
+
   useEffect(() => {
     if (!historyMode || !user) return;
     void loadRequestHistory();
@@ -137,6 +153,7 @@ const UtilityServices = () => {
       return;
     }
     setTrackingRequestId(null);
+    setHistoryTab("pending");
     setHistoryMode(true);
   };
 
