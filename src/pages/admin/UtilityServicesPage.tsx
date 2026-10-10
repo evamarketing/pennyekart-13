@@ -19,7 +19,7 @@ import UtilitySellerRegistrations from "@/components/admin/UtilitySellerRegistra
 import { Plus, Pencil, Trash2, Wrench, Phone, MapPin, Package } from "lucide-react";
 import VariantManager from "@/components/utility/VariantManager";
 import {
-  CATEGORY_TYPES, unitsForCategoryType, REQUEST_STATUSES, formatServicePrice, priceUnitLabel, statusLabel,
+  CATEGORY_TYPES, unitsForCategoryType, REQUEST_STATUSES, formatServicePrice, priceUnitLabel, statusLabel, autoCancelLabel,
   type UtilityCategory, type UtilityService, type UtilityRequest,
 } from "@/lib/utilityServices";
 
@@ -126,6 +126,7 @@ const UtilityServicesPage = () => {
       name: c.name, description: c.description ?? "", icon: c.icon ?? "",
       image_url: c.image_url ?? "", sort_order: c.sort_order, is_active: c.is_active,
       category_type: c.category_type ?? "service",
+      auto_cancel_minutes: c.auto_cancel_minutes ?? 0,
     });
     setCatEditId(c.id); setCatOpen(true);
   };
@@ -201,6 +202,24 @@ const UtilityServicesPage = () => {
                     <div><Label>Icon Name (Lucide)</Label><Input value={catForm.icon} onChange={(e) => setCatForm({ ...catForm, icon: e.target.value })} placeholder="e.g. Plug, Hammer" /></div>
                     <ImageUpload bucket="categories" value={catForm.image_url} onChange={(url) => setCatForm({ ...catForm, image_url: url })} label="Category Image" />
                     <div><Label>Sort Order</Label><Input type="number" value={catForm.sort_order} onChange={(e) => setCatForm({ ...catForm, sort_order: +e.target.value })} /></div>
+                    <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+                      <Label>Auto-cancel waiting limit (minutes)</Label>
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        If no partner accepts a booking within this time, it is cancelled automatically and the customer is told the service is unavailable. Set 0 to never auto-cancel.
+                      </p>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={catForm.auto_cancel_minutes}
+                        onChange={(e) => setCatForm({ ...catForm, auto_cancel_minutes: Math.max(0, +e.target.value || 0) })}
+                        placeholder="e.g. 30"
+                      />
+                      {catForm.auto_cancel_minutes > 0 && (
+                        <p className="mt-1 text-xs font-medium text-destructive">
+                          Unaccepted bookings cancel after {autoCancelLabel(catForm.auto_cancel_minutes)}.
+                        </p>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2"><Switch checked={catForm.is_active} onCheckedChange={(v) => setCatForm({ ...catForm, is_active: v })} /><Label>Active</Label></div>
                     <Button className="w-full" onClick={saveCategory}>Save</Button>
                   </div>
