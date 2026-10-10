@@ -16,19 +16,25 @@ interface Props {
   onCancel?: (id: string) => void;
   onComplete?: (id: string) => void;
   onRemindLater?: () => void;
+  /** Show only one group in its own window; omit for the combined list. */
+  group?: "new" | "pending";
 }
 
-export default function UtilityRequestNotificationDialog({ open, onOpenChange, requests, serviceName, onAccept, onCancel, onComplete, onRemindLater }: Props) {
+export default function UtilityRequestNotificationDialog({ open, onOpenChange, requests, serviceName, onAccept, onCancel, onComplete, onRemindLater, group }: Props) {
   const pending = requests.filter((request) => request.status === "pending");
   const unfinished = onComplete ? requests.filter((r) => UTILITY_UNFINISHED_STATUSES.includes(r.status)) : [];
-  const list = [...pending, ...unfinished];
-  const onlyUnfinished = pending.length === 0 && unfinished.length > 0;
-  const description = unfinished.length
-    ? <span className="block text-xl font-bold">{pending.length} new · {unfinished.length} unfinished</span>
-    : `${pending.length} new · awaiting action`;
+  const list = group === "new" ? pending : group === "pending" ? unfinished : [...pending, ...unfinished];
+  const onlyUnfinished = group ? group === "pending" : pending.length === 0 && unfinished.length > 0;
+  const description = group === "new"
+    ? <span className="block text-xl font-bold">{pending.length} new · awaiting action</span>
+    : group === "pending"
+      ? <span className="block text-xl font-bold">{unfinished.length} unfinished requests</span>
+      : unfinished.length
+        ? <span className="block text-xl font-bold">{pending.length} new · {unfinished.length} unfinished</span>
+        : `${pending.length} new · awaiting action`;
   return (
     <NotificationDialogFrame open={open} onOpenChange={onOpenChange} pendingTheme={onlyUnfinished}
-      title={onlyUnfinished ? "Pending request alert" : "Service requests"} description={description}>
+      title={group === "new" ? "New service requests" : onlyUnfinished ? "Pending request alert" : "Service requests"} description={description}>
       {list.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No pending requests</p>}
       {list.map((request) => {
         const isNew = request.status === "pending";
