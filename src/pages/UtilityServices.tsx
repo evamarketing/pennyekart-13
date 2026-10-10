@@ -501,6 +501,23 @@ const UtilityServices = () => {
                 <RefreshCw className={`h-4 w-4 ${historyLoading ? "animate-spin" : ""}`} /> Refresh
               </Button>
             </div>
+            {!historyError && requestHistory.length > 0 && (
+              <div role="tablist" aria-label="Booking status" className="flex gap-1 rounded-lg border bg-muted/40 p-1">
+                {bookingTabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeBookingTab === tab.key}
+                    onClick={() => { setHistoryTab(tab.key); setTrackingRequestId(null); }}
+                    className={`min-h-11 flex-1 rounded-md px-3 text-sm font-medium transition-colors ${activeBookingTab === tab.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {tab.label}
+                    <span className="ml-1.5 text-xs text-muted-foreground">{tab.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {historyError ? (
               <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
                 <p>{historyError}</p>
@@ -508,18 +525,26 @@ const UtilityServices = () => {
               </div>
             ) : historyLoading && requestHistory.length === 0 ? (
               <p className="py-10 text-center text-sm text-muted-foreground">Loading your bookings…</p>
-            ) : requestHistory.length === 0 ? (
+            ) : visibleBookings.length === 0 ? (
               <div className="flex flex-col items-center gap-3 border-y py-12 text-center">
                 <Package className="h-10 w-10 text-muted-foreground" />
                 <div>
-                  <h3 className="font-semibold">No bookings yet</h3>
-                  <p className="text-sm text-muted-foreground">Your utility orders and service requests will appear here.</p>
+                  <h3 className="font-semibold">
+                    {activeBookingTab === "pending" ? "No pending bookings" : activeBookingTab === "completed" ? "No completed bookings yet" : "No cancelled bookings"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {activeBookingTab === "pending"
+                      ? "Your open utility orders and service requests will appear here."
+                      : activeBookingTab === "completed"
+                        ? "Bookings the supplier marks as finished will appear here."
+                        : "Bookings you or the supplier cancelled will appear here."}
+                  </p>
                 </div>
                 <Button variant="outline" onClick={() => setHistoryMode(false)}>Browse services</Button>
               </div>
             ) : (
               <div className="space-y-3">
-                {requestHistory.map((request) => {
+                {visibleBookings.map((request) => {
                   const currentStep = request.status === "quoted"
                     ? 0
                     : UTILITY_TRACKING_STEPS.findIndex((step) => step.status === request.status);
