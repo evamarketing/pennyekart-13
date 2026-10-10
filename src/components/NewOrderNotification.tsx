@@ -42,12 +42,15 @@ const NewOrderNotification = ({ userId, role, onAccept, onRefresh }: Props) => {
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [inProgressOrders, setInProgressOrders] = useState<PendingOrder[]>([]);
   const [open, setOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [pendingOpen, setPendingOpen] = useState(false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [detailOrder, setDetailOrder] = useState<PendingOrder | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const prevCountRef = useRef(0);
   const lastSellerAlertRef = useRef(0);
   const previousSellerIdsRef = useRef<Set<string>>(new Set());
+  const previousNewIdsRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   const playSound = () => {
@@ -77,18 +80,22 @@ const NewOrderNotification = ({ userId, role, onAccept, onRefresh }: Props) => {
       const pending = all.filter((o) => PENDING_STATUSES[role].includes(o.status));
       const active = all.filter((o) => role === "seller" ? sellerReminderGroup(o.status) === "unfinished" : IN_PROGRESS_STATUSES[role].includes(o.status));
       const fresh = pending.filter((o) => !dismissedIds.has(o.id));
-      const unfinished = [...pending, ...active];
       const now = Date.now();
-      const sellerAlert = role === "seller" && unfinished.length > 0 && (
-        unfinished.some(o => !previousSellerIdsRef.current.has(o.id)) ||
-        now - lastSellerAlertRef.current >= SELLER_REMINDER_INTERVAL
-      );
-      if (sellerAlert || (role === "delivery" && fresh.length > 0 && fresh.length > prevCountRef.current)) {
+      if (role === "seller") {
+        // New orders and unfinished orders alert in separate windows.
+        const newOrderAlert = fresh.some((o) => !previousNewIdsRef.current.has(o.id));
+        const pendingAlert = active.length > 0 && (
+          active.some((o) => !previousSellerIdsRef.current.has(o.id)) ||
+          now - lastSellerAlertRef.current >= SELLER_REMINDER_INTERVAL
+        );
+        if (newOrderAlert) { playSound(); setNewOpen(true); }
+        if (pendingAlert) { playSound(); setPendingOpen(true); lastSellerAlertRef.current = now; }
+        previousNewIdsRef.current = new Set(fresh.map((o) => o.id));
+        previousSellerIdsRef.current = new Set(active.map((o) => o.id));
+      } else if (fresh.length > 0 && fresh.length > prevCountRef.current) {
         playSound();
         setOpen(true);
-        if (role === "seller") lastSellerAlertRef.current = now;
       }
-      previousSellerIdsRef.current = new Set(unfinished.map(o => o.id));
       prevCountRef.current = fresh.length;
       setPendingOrders(pending);
       setInProgressOrders(active);
