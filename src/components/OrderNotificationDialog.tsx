@@ -19,6 +19,8 @@ interface Props {
   footer?: ReactNode;
   highlightItems?: boolean;
   sellerReminders?: boolean;
+  /** Treat every listed order as an unfinished/pending-reminder order (separate pending window). */
+  forceActive?: boolean;
 }
 
 export function NotificationDialogFrame({ open, onOpenChange, title, description, tabs, footer, children, pendingTheme = false }: {
@@ -41,14 +43,14 @@ export function NotificationDialogFrame({ open, onOpenChange, title, description
   );
 }
 
-export default function OrderNotificationDialog({ open, onOpenChange, title, pending, active = [], dismissedIds, showTabs = true, renderContact, renderActions, footer, highlightItems = false, sellerReminders = false }: Props) {
+export default function OrderNotificationDialog({ open, onOpenChange, title, pending, active = [], dismissedIds, showTabs = true, renderContact, renderActions, footer, highlightItems = false, sellerReminders = false, forceActive = false }: Props) {
   const [tab, setTab] = useState("new");
-  const selectedTab = tab === "new" && !pending.length && active.length ? "active" : tab;
-  const orders = !showTabs || selectedTab === "new" ? pending : active;
+  const selectedTab = forceActive ? "active" : tab === "new" && !pending.length && active.length ? "active" : tab;
+  const orders = forceActive ? pending : !showTabs || selectedTab === "new" ? pending : active;
   return (
     <NotificationDialogFrame open={open} onOpenChange={onOpenChange} title={sellerReminders ? selectedTab === "active" ? "Pending order alert" : "New order reminder" : title}
       pendingTheme={sellerReminders && selectedTab === "active"}
-      description={sellerReminders ? <span className="block text-xl font-bold">{selectedTab === "new" ? `${pending.length} orders awaiting acceptance` : `${active.length} unfinished orders`}</span> : <>{pending.length} new{showTabs ? ` · ${active.length} in progress` : " · awaiting action"}</>}
+      description={sellerReminders ? <span className="block text-xl font-bold">{selectedTab === "new" ? `${pending.length} orders awaiting acceptance` : `${orders.length} unfinished orders`}</span> : <>{pending.length} new{showTabs ? ` · ${active.length} in progress` : " · awaiting action"}</>}
       footer={footer}
       tabs={showTabs && <Tabs value={selectedTab} onValueChange={setTab} className="shrink-0 border-b px-4 py-3">
           <TabsList className="grid w-full grid-cols-2 h-11">
@@ -60,7 +62,7 @@ export default function OrderNotificationDialog({ open, onOpenChange, title, pen
           {!orders.length && <p className="py-8 text-center text-sm text-muted-foreground">No {selectedTab === "new" ? "new orders" : "orders in progress"}</p>}
           {orders.map((order) => {
             const items = Array.isArray(order.items) ? order.items : [];
-            const isNew = !showTabs || selectedTab === "new";
+            const isNew = !forceActive && (!showTabs || selectedTab === "new");
             const unfinishedAlert = sellerReminders && (!isNew || dismissedIds?.has(order.id));
             return <article key={order.id} className={`rounded-lg border bg-card p-3 space-y-3 ${unfinishedAlert ? "seller-pending-theme border-primary/40" : ""}`}>
               {unfinishedAlert && <p className="rounded-md bg-secondary p-3 text-xl font-bold text-secondary-foreground">Pending · Unfinished order</p>}

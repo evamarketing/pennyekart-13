@@ -47,7 +47,7 @@ const UtilityPartnerDashboard = () => {
   const [editId, setEditId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [packsFor, setPacksFor] = useState<UtilityService | null>(null);
-  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertGroup, setAlertGroup] = useState<"new" | "pending" | null>(null);
   const [available, setAvailable] = useState<boolean>((profile as any)?.is_available ?? true);
   useEffect(() => { setAvailable((profile as any)?.is_available ?? true); }, [(profile as any)?.is_available]);
   const prevPendingRef = useRef(-1);
@@ -174,23 +174,33 @@ const UtilityPartnerDashboard = () => {
 
   // Popup when a new pending request arrives, and on every page load/refresh
   // while pending requests exist — unless the seller tapped "Remind me later" today.
+  // New requests and unfinished requests open in separate windows.
   const dismissedToday = () => localStorage.getItem("utility_popup_dismissed_date") === new Date().toDateString();
   const remindLater = () => {
     localStorage.setItem("utility_popup_dismissed_date", new Date().toDateString());
-    setAlertOpen(false);
+    setAlertGroup(null);
   };
-  const alertIdsRef = useRef<Set<string>>(new Set());
+  const newAlertIdsRef = useRef<Set<string>>(new Set());
+  const pendingAlertIdsRef = useRef<Set<string>>(new Set());
   const lastAlertRef = useRef(0);
   useEffect(() => {
     if (!profile?.user_id || remindersPaused) return;
-    const open = requests.filter((r) => r.status === "pending" || UTILITY_UNFINISHED_STATUSES.includes(r.status));
-    const count = open.length;
-    const hasNewId = open.some((r) => !alertIdsRef.current.has(r.id));
-    alertIdsRef.current = new Set(open.map((r) => r.id));
+    const fresh = requests.filter((r) => r.status === "pending");
+    const unfinished = requests.filter((r) => UTILITY_UNFINISHED_STATUSES.includes(r.status));
+    const hasNewId = fresh.some((r) => !newAlertIdsRef.current.has(r.id));
+    const hasNewUnfinishedId = unfinished.some((r) => !pendingAlertIdsRef.current.has(r.id));
+    newAlertIdsRef.current = new Set(fresh.map((r) => r.id));
+    pendingAlertIdsRef.current = new Set(unfinished.map((r) => r.id));
+    const count = fresh.length + unfinished.length;
     if (count === 0) { prevPendingRef.current = count; return; }
     const due = Date.now() - lastAlertRef.current >= SELLER_REMINDER_INTERVAL;
-    if (dismissedToday() && !hasNewId) { prevPendingRef.current = count; return; }
-    if (prevPendingRef.current === -1 || hasNewId || due) { setAlertOpen(true); lastAlertRef.current = Date.now(); }
+    if (hasNewId || (prevPendingRef.current === -1 && fresh.length > 0)) {
+      setAlertGroup("new");
+      lastAlertRef.current = Date.now();
+    } else if (unfinished.length > 0 && (hasNewUnfinishedId || due) && !(dismissedToday() && !hasNewUnfinishedId)) {
+      setAlertGroup("pending");
+      lastAlertRef.current = Date.now();
+    }
     prevPendingRef.current = count;
   }, [requests, remindersPaused, profile?.user_id]);
 

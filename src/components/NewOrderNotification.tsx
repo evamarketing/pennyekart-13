@@ -42,12 +42,15 @@ const NewOrderNotification = ({ userId, role, onAccept, onRefresh }: Props) => {
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [inProgressOrders, setInProgressOrders] = useState<PendingOrder[]>([]);
   const [open, setOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [pendingOpen, setPendingOpen] = useState(false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [detailOrder, setDetailOrder] = useState<PendingOrder | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const prevCountRef = useRef(0);
   const lastSellerAlertRef = useRef(0);
   const previousSellerIdsRef = useRef<Set<string>>(new Set());
+  const previousNewIdsRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   const playSound = () => {
@@ -77,18 +80,22 @@ const NewOrderNotification = ({ userId, role, onAccept, onRefresh }: Props) => {
       const pending = all.filter((o) => PENDING_STATUSES[role].includes(o.status));
       const active = all.filter((o) => role === "seller" ? sellerReminderGroup(o.status) === "unfinished" : IN_PROGRESS_STATUSES[role].includes(o.status));
       const fresh = pending.filter((o) => !dismissedIds.has(o.id));
-      const unfinished = [...pending, ...active];
       const now = Date.now();
-      const sellerAlert = role === "seller" && unfinished.length > 0 && (
-        unfinished.some(o => !previousSellerIdsRef.current.has(o.id)) ||
-        now - lastSellerAlertRef.current >= SELLER_REMINDER_INTERVAL
-      );
-      if (sellerAlert || (role === "delivery" && fresh.length > 0 && fresh.length > prevCountRef.current)) {
+      if (role === "seller") {
+        // New orders and unfinished orders alert in separate windows.
+        const newOrderAlert = fresh.some((o) => !previousNewIdsRef.current.has(o.id));
+        const pendingAlert = active.length > 0 && (
+          active.some((o) => !previousSellerIdsRef.current.has(o.id)) ||
+          now - lastSellerAlertRef.current >= SELLER_REMINDER_INTERVAL
+        );
+        if (newOrderAlert) { playSound(); setNewOpen(true); }
+        if (pendingAlert) { playSound(); setPendingOpen(true); lastSellerAlertRef.current = now; }
+        previousNewIdsRef.current = new Set(fresh.map((o) => o.id));
+        previousSellerIdsRef.current = new Set(active.map((o) => o.id));
+      } else if (fresh.length > 0 && fresh.length > prevCountRef.current) {
         playSound();
         setOpen(true);
-        if (role === "seller") lastSellerAlertRef.current = now;
       }
-      previousSellerIdsRef.current = new Set(unfinished.map(o => o.id));
       prevCountRef.current = fresh.length;
       setPendingOrders(pending);
       setInProgressOrders(active);
@@ -174,19 +181,57 @@ const NewOrderNotification = ({ userId, role, onAccept, onRefresh }: Props) => {
 
   if (pendingOrders.length === 0 && inProgressOrders.length === 0) return null;
 
+  const sellerActions = (order: PendingOrder, isNew: boolean) => <div className="grid grid-cols-[1fr_auto] gap-2">
+    {isNew && !dismissedIds.has(order.id) && <Button className="h-11 delivery-gradient" disabled={busyId !== null} onClick={() => handleAccept(order.id)}>
+      <CheckCircle2 className="mr-2 h-4 w-4" />{busyId === order.id ? "Accepting…" : "Accept order"}
+    </Button>}
+    <Button variant="outline" className={isNew && !dismissedIds.has(order.id) ? "h-11 w-11 p-0" : "col-span-2 h-11"} aria-label={`View order ${order.id.slice(0, 8)}`} title="View order" onClick={() => setDetailOrder(order)}><Eye className="h-4 w-4" />{(!isNew || dismissedIds.has(order.id)) && "View order"}</Button>
+    {isNew && !dismissedIds.has(order.id) && <Button variant="ghost" className="col-span-2 h-10" onClick={() => handleDismiss(order.id)}>Later</Button>}
+  </div>;
+
   return (
     <>
-      {/* Floating notification bell */}
-      {totalBadge > 0 && (
+      {/* Floating notification bells — separate windows for new vs pending orders */}
+      {role === "seller" ? (
+        <>
+          {pendingOrders.length > 0 && (
+            <Button
+              aria-label={`Open new order notifications (${pendingOrders.length})`}
+              onClick={() => setNewOpen(true)}
+              className={`fixed bottom-20 right-4 z-50 flex h-16 w-auto items-center justify-center gap-2 rounded-lg px-4 bg-primary text-primary-foreground shadow-lg transition-all delivery-blue delivery-gradient ${
+                undismissedOrders.length > 0 ? "motion-safe:animate-bounce hover:animate-none" : ""
+              }`}
+            >
+              <Bell className="h-6 w-6" />
+              <span className="text-base font-bold">New orders</span>
+              <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                {pendingOrders.length}
+              </span>
+            </Button>
+          )}
+          {inProgressOrders.length > 0 && (
+            <Button
+              aria-label={`Open pending order notifications (${inProgressOrders.length})`}
+              onClick={() => setPendingOpen(true)}
+              className={`fixed ${pendingOrders.length > 0 ? "bottom-40" : "bottom-20"} right-4 z-50 flex h-16 w-auto items-center justify-center gap-2 rounded-lg px-4 bg-primary text-primary-foreground shadow-lg transition-all seller-pending-theme delivery-gradient`}
+            >
+              <Bell className="h-6 w-6" />
+              <span className="text-base font-bold">Pending orders</span>
+              <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                {inProgressOrders.length}
+              </span>
+            </Button>
+          )}
+        </>
+      ) : totalBadge > 0 && (
         <Button
           aria-label={`Open order notifications (${totalBadge})`}
           onClick={() => setOpen(true)}
-          className={`fixed bottom-20 right-4 z-50 flex items-center justify-center ${role === "seller" ? "h-16 w-auto gap-2 px-4 rounded-lg" : "h-14 w-14 rounded-full"} bg-primary text-primary-foreground shadow-lg transition-all ${role === "delivery" || undismissedOrders.length > 0 ? "delivery-blue delivery-gradient" : "seller-pending-theme delivery-gradient"} ${
+          className={`fixed bottom-20 right-4 z-50 flex items-center justify-center h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg transition-all delivery-blue delivery-gradient ${
             undismissedOrders.length > 0 ? "motion-safe:animate-bounce hover:animate-none" : ""
           }`}
         >
           <Bell className="h-6 w-6" />
-          {role === "seller" && <span className="text-base font-bold">{undismissedOrders.length > 0 ? "New orders" : "Pending orders"}</span>}
           <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
             {totalBadge}
           </span>
@@ -197,19 +242,25 @@ const NewOrderNotification = ({ userId, role, onAccept, onRefresh }: Props) => {
         open={open} onOpenChange={setOpen} userId={userId} pending={pendingOrders} active={inProgressOrders}
         dismissedIds={dismissedIds} busyId={busyId} onAccept={handleAccept} onFinish={handleFinish}
         onLater={handleDismiss} onDetail={setDetailOrder}
-      /> : <OrderNotificationDialog
-        highlightItems
-        sellerReminders
-        open={open} onOpenChange={setOpen} title="Seller orders"
-        pending={pendingOrders} active={inProgressOrders} dismissedIds={dismissedIds}
-        renderActions={(order, isNew) => <div className="grid grid-cols-[1fr_auto] gap-2">
-          {isNew && !dismissedIds.has(order.id) && <Button className="h-11 delivery-gradient" disabled={busyId !== null} onClick={() => handleAccept(order.id)}>
-            <CheckCircle2 className="mr-2 h-4 w-4" />{busyId === order.id ? "Accepting…" : "Accept order"}
-          </Button>}
-          <Button variant="outline" className={isNew && !dismissedIds.has(order.id) ? "h-11 w-11 p-0" : "col-span-2 h-11"} aria-label={`View order ${order.id.slice(0, 8)}`} title="View order" onClick={() => setDetailOrder(order)}><Eye className="h-4 w-4" />{(!isNew || dismissedIds.has(order.id)) && "View order"}</Button>
-          {isNew && !dismissedIds.has(order.id) && <Button variant="ghost" className="col-span-2 h-10" onClick={() => handleDismiss(order.id)}>Later</Button>}
-        </div>}
-      />}
+      /> : <>
+        <OrderNotificationDialog
+          highlightItems
+          sellerReminders
+          showTabs={false}
+          open={newOpen} onOpenChange={setNewOpen} title="New orders"
+          pending={pendingOrders} dismissedIds={dismissedIds}
+          renderActions={sellerActions}
+        />
+        <OrderNotificationDialog
+          highlightItems
+          sellerReminders
+          showTabs={false}
+          forceActive
+          open={pendingOpen} onOpenChange={setPendingOpen} title="Pending orders"
+          pending={inProgressOrders} dismissedIds={dismissedIds}
+          renderActions={sellerActions}
+        />
+      </>}
       <OrderDetailDialog highlightItems={role === "seller"} order={detailOrder} open={!!detailOrder} onOpenChange={(v) => { if (!v) setDetailOrder(null); }} />
     </>
   );
