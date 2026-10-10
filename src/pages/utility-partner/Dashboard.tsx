@@ -390,7 +390,7 @@ const UtilityPartnerDashboard = () => {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{remindersPaused ? "Resume" : "Off for 12 hrs"}</span>
-            <Switch id="utility-reminders" aria-label="Order reminders" checked={!remindersPaused} onCheckedChange={(enabled) => { setRemindersPaused(!enabled); if (!enabled) setAlertOpen(false); }} />
+            <Switch id="utility-reminders" aria-label="Order reminders" checked={!remindersPaused} onCheckedChange={(enabled) => { setRemindersPaused(!enabled); if (!enabled) setAlertGroup(null); }} />
           </div>
         </div>
         {/* Greeting */}
@@ -599,7 +599,9 @@ const UtilityPartnerDashboard = () => {
 
       {/* New request popup */}
       <UtilityRequestNotificationDialog
-        open={alertOpen} onOpenChange={setAlertOpen} requests={requests}
+        open={alertGroup !== null} onOpenChange={(v) => { if (!v) setAlertGroup(null); }}
+        group={alertGroup ?? undefined}
+        requests={requests}
         serviceName={serviceName} onAccept={(id) => setAcceptId(id)}
         onComplete={(id) => setRequestStatus(id, "completed")}
         onCancel={cancelRequest} onRemindLater={remindLater}
@@ -610,11 +612,11 @@ const UtilityPartnerDashboard = () => {
       {(() => {
         const unfinishedCount = requests.filter((r) => UTILITY_UNFINISHED_STATUSES.includes(r.status)).length;
         const total = pending + unfinishedCount;
-         if (total === 0 || alertOpen || remindersPaused) return null;
+         if (total === 0 || alertGroup !== null || remindersPaused) return null;
         return (
           <Button
             aria-label={`Open service request notifications (${total})`}
-            onClick={() => setAlertOpen(true)}
+            onClick={() => setAlertGroup(pending > 0 ? "new" : "pending")}
             className={`${pending > 0 ? "delivery-blue motion-safe:animate-bounce" : "seller-pending-theme"} delivery-gradient fixed bottom-20 right-4 z-50 flex h-16 w-auto items-center justify-center gap-2 rounded-lg px-4 text-primary-foreground shadow-lg`}
           >
             <Bell className="h-6 w-6" />

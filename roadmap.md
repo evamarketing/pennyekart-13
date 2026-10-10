@@ -1,5 +1,8 @@
 # Roadmap
 
+## Utility My bookings status tabs
+- [x] Split My bookings into Pending and Completed tabs (Cancelled tab appears when a booking was cancelled); counts shown per tab, Pending opens first. Three tab-switching tests and the booking grouping test passed; build OK. Live signed-in booking views remain unverified (external Supabase session unavailable).
+
 ## Utility booking availability and cancellation alerts
 - [ ] Require an availability estimate when a utility partner accepts a request; show it in customer booking history.
 - [ ] Allow customers to cancel pending/accepted bookings and immediately alert the assigned utility partner.

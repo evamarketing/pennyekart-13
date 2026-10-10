@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Wrench, MapPin, Phone, Search, Building2, ChevronRight, Package, Minus, Plus, ShoppingCart, History, RefreshCw, CheckCircle2, Circle } from "lucide-react";
-import { formatServicePrice, statusLabel, type UtilityCategory, type UtilityRequest, type UtilityService, type UtilityVariant } from "@/lib/utilityServices";
+import { bookingGroup, formatServicePrice, statusLabel, type UtilityCategory, type UtilityRequest, type UtilityService, type UtilityVariant } from "@/lib/utilityServices";
 import { formatAvailability } from "@/components/utility/AvailabilityDialog";
 import AddressFormFields, {
   emptyAddressForm,
@@ -79,6 +79,7 @@ const UtilityServices = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [trackingRequestId, setTrackingRequestId] = useState<string | null>(null);
+  const [historyTab, setHistoryTab] = useState<"pending" | "completed" | "cancelled">("pending");
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -115,6 +116,21 @@ const UtilityServices = () => {
     setHistoryLoading(false);
   }, [user]);
 
+  const bookingGroups = useMemo(() => ({
+    pending: requestHistory.filter((request) => bookingGroup(request.status) === "pending"),
+    completed: requestHistory.filter((request) => bookingGroup(request.status) === "completed"),
+    cancelled: requestHistory.filter((request) => bookingGroup(request.status) === "cancelled"),
+  }), [requestHistory]);
+  const bookingTabs = [
+    { key: "pending" as const, label: "Pending", count: bookingGroups.pending.length },
+    { key: "completed" as const, label: "Completed", count: bookingGroups.completed.length },
+    ...(bookingGroups.cancelled.length > 0
+      ? [{ key: "cancelled" as const, label: "Cancelled", count: bookingGroups.cancelled.length }]
+      : []),
+  ];
+  const activeBookingTab = bookingTabs.some((tab) => tab.key === historyTab) ? historyTab : "pending";
+  const visibleBookings = bookingGroups[activeBookingTab];
+
   useEffect(() => {
     if (!historyMode || !user) return;
     void loadRequestHistory();
@@ -137,6 +153,7 @@ const UtilityServices = () => {
       return;
     }
     setTrackingRequestId(null);
+    setHistoryTab("pending");
     setHistoryMode(true);
   };
 
@@ -484,6 +501,23 @@ const UtilityServices = () => {
                 <RefreshCw className={`h-4 w-4 ${historyLoading ? "animate-spin" : ""}`} /> Refresh
               </Button>
             </div>
+            {!historyError && requestHistory.length > 0 && (
+              <div role="tablist" aria-label="Booking status" className="flex gap-1 rounded-lg border bg-muted/40 p-1">
+                {bookingTabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeBookingTab === tab.key}
+                    onClick={() => { setHistoryTab(tab.key); setTrackingRequestId(null); }}
+                    className={`min-h-11 flex-1 rounded-md px-3 text-sm font-medium transition-colors ${activeBookingTab === tab.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {tab.label}
+                    <span className="ml-1.5 text-xs text-muted-foreground">{tab.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {historyError ? (
               <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
                 <p>{historyError}</p>
@@ -491,18 +525,26 @@ const UtilityServices = () => {
               </div>
             ) : historyLoading && requestHistory.length === 0 ? (
               <p className="py-10 text-center text-sm text-muted-foreground">Loading your bookings…</p>
-            ) : requestHistory.length === 0 ? (
+            ) : visibleBookings.length === 0 ? (
               <div className="flex flex-col items-center gap-3 border-y py-12 text-center">
                 <Package className="h-10 w-10 text-muted-foreground" />
                 <div>
-                  <h3 className="font-semibold">No bookings yet</h3>
-                  <p className="text-sm text-muted-foreground">Your utility orders and service requests will appear here.</p>
+                  <h3 className="font-semibold">
+                    {activeBookingTab === "pending" ? "No pending bookings" : activeBookingTab === "completed" ? "No completed bookings yet" : "No cancelled bookings"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {activeBookingTab === "pending"
+                      ? "Your open utility orders and service requests will appear here."
+                      : activeBookingTab === "completed"
+                        ? "Bookings the supplier marks as finished will appear here."
+                        : "Bookings you or the supplier cancelled will appear here."}
+                  </p>
                 </div>
                 <Button variant="outline" onClick={() => setHistoryMode(false)}>Browse services</Button>
               </div>
             ) : (
               <div className="space-y-3">
-                {requestHistory.map((request) => {
+                {visibleBookings.map((request) => {
                   const currentStep = request.status === "quoted"
                     ? 0
                     : UTILITY_TRACKING_STEPS.findIndex((step) => step.status === request.status);
