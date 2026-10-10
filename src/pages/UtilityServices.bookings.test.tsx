@@ -37,13 +37,15 @@ vi.mock("@/integrations/supabase/client", () => {
   };
 });
 
-vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({ user: { id: "cust1" }, profile: null, loading: false }),
-}));
+vi.mock("@/hooks/useAuth", () => {
+  const authValue = { user: { id: "cust1" }, profile: null, loading: false };
+  return { useAuth: () => authValue };
+});
 
-vi.mock("@/hooks/use-toast", () => ({
-  useToast: () => ({ toast: () => undefined }),
-}));
+vi.mock("@/hooks/use-toast", () => {
+  const toastValue = { toast: () => undefined };
+  return { useToast: () => toastValue };
+});
 
 afterEach(cleanup);
 
